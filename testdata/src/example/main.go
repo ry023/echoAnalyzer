@@ -1,3 +1,4 @@
+// from: https://github.com/labstack/echo#example
 package main
 
 import (
@@ -15,7 +16,7 @@ func main() {
   e.Use(middleware.Recover())
 
   // Routes
-  e.GET("/", hello)
+  e.GET("/", hello) // want "`GET /` Registred"
 
   // Start server
   e.Logger.Fatal(e.Start(":1323"))
@@ -23,5 +24,5 @@ func main() {
 
 // Handler
 func hello(c echo.Context) error {
-  return c.String(http.StatusOK, "Hello, World!")
+  return c.String(http.StatusOK, "Hello, World!") // want "`GET /` returns http.StatusOK"
 }
