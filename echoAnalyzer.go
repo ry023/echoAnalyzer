@@ -1,6 +1,7 @@
 package echoAnalyzer
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gostaticanalysis/analysisutil"
@@ -35,29 +36,40 @@ func findEndpointAdditions(pass *analysis.Pass) []*endpointAddition {
 	srcFuncs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
 
 	// Find endpoint settings such as the `echo.GET` method
-	analysisutil.InspectFuncs(srcFuncs, func(i int, instr ssa.Instruction) bool {
+	//analysisutil.InspectFuncs(srcFuncs, func(i int, instr ssa.Instruction) bool {
+	eachInstruction(srcFuncs, func(instr ssa.Instruction) {
 		// Skip if not function/method calling
 		call, isCall := instr.(*ssa.Call)
 		if !isCall {
-			return true
+			return
 		}
 
-		// Skip if function (not method)
-		if !call.Common().IsInvoke() {
-			return true
+		// Skip if abstract interface's method calling
+		if call.Common().IsInvoke() {
+			return
 		}
 
-		receiver := call.Common().Args[0]
+		// Skip
+		if len(call.Common().Args) == 0 {
+			return
+		}
 
-		switch receiver.Type() {
-		case analysisutil.TypeOf(pass, "echo", "Echo"):
-		case analysisutil.TypeOf(pass, "echo", "Group"):
+		receiver := call.Common().Signature().Recv()
+
+		switch receiver.Type().String() {
+		case analysisutil.TypeOf(pass, "github.com/labstack/echo/v4", "*Echo").String():
+		case analysisutil.TypeOf(pass, "github.com/labstack/echo/v4", "*Group").String():
 		default:
-			return true // skip if not echo receiver
+			return // skip if not echo receiver
+		}
+
+		callee := call.Common().StaticCallee()
+		if callee == nil {
+			return
 		}
 
 		var httpmethod string
-		switch call.Common().Method.Name() {
+		switch callee.Name() {
 		case "CONNECT":
 			httpmethod = http.MethodConnect
 		case "DELETE":
@@ -77,25 +89,52 @@ func findEndpointAdditions(pass *analysis.Pass) []*endpointAddition {
 		case "TRACE":
 			httpmethod = http.MethodTrace
 		default:
-			return true // skip if not endpoint setting method
+			return // skip if not endpoint setting method
 		}
 
-		//pathArg := call.Common().Args[1]
+		path, ok := call.Common().Args[1].(*ssa.Const)
+		if !ok {
+			pass.Reportf(call.Pos(), "Path parameter must be constant (*ssa.Const) to parse.")
+			return
+		}
+
+		// Parse handler
+		handler, err := getFunctionFromArg(call.Common().Args[2])
+		if err != nil {
+			pass.Reportf(call.Pos(), "cannot parse 2nd arg: %v", err)
+			return
+		}
 
 		endpoints = append(
 			endpoints,
 			&endpointAddition{
 				method:     httpmethod,
-				path:       "",
-				handler:    &ssa.Function{},
+				path:       path.Value.String(),
+				handler:    handler,
 				middleware: []*ssa.Function{},
 			},
 		)
 
-		return true
+		return
 	})
 
 	return endpoints
+}
+
+func getFunctionFromArg(arg ssa.Value) (*ssa.Function, error) {
+	ct, ok := arg.(*ssa.ChangeType)
+	if !ok {
+		return nil, fmt.Errorf("argument value (%v) is not *ssa.ChangeType", ct)
+	}
+	switch v := ct.X.(type) {
+	case *ssa.Function:
+		return v, nil
+	case *ssa.MakeClosure:
+		if fn, ok := v.Fn.(*ssa.Function); ok {
+			return fn, nil
+		}
+	}
+	return nil, fmt.Errorf("argument may be not function call")
 }
 
 type endpointAddition struct {
