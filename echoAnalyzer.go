@@ -23,9 +23,18 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	findEndpointSettings(pass)
+	endpoints := findEndpointSettings(pass)
+
+	for _, e := range endpoints {
+		findBoundParam(pass, e)
+	}
 
 	return nil, nil
+}
+
+func findBoundParam(pass *analysis.Pass, endpoint *endpointSetting) {
+	eachInstruction([]*ssa.Function{endpoint.handler}, func(inst ssa.Instruction) {
+	})
 }
 
 func findEndpointSettings(pass *analysis.Pass) []*endpointSetting {
