@@ -13,3 +13,25 @@ func eachInstruction(funcs []*ssa.Function, handler func(instr ssa.Instruction))
 		}
 	}
 }
+
+func isInterfaceMethodCall(instr ssa.Instruction) bool {
+	call, isCall := instr.(*ssa.Call)
+	if !isCall {
+		return false
+	}
+
+	return call.Common().IsInvoke()
+}
+
+func isStructMethodCall(instr ssa.Instruction) bool {
+	call, isCall := instr.(*ssa.Call)
+	if !isCall {
+		return false
+	}
+
+	if call.Common().IsInvoke() {
+    return false
+  }
+
+  return call.Common().Signature().Recv() != nil
+}
