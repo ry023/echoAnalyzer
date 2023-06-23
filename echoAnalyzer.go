@@ -28,9 +28,9 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-func findEndpointAdditions(pass *analysis.Pass) []*endpointAddition {
+func findEndpointAdditions(pass *analysis.Pass) []*endpointSetting {
 	// Define values to return
-	endpoints := []*endpointAddition{}
+	endpoints := []*endpointSetting{}
 
 	// Get all funcs from buildssa analyzer
 	srcFuncs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
@@ -107,7 +107,7 @@ func findEndpointAdditions(pass *analysis.Pass) []*endpointAddition {
 
 		endpoints = append(
 			endpoints,
-			&endpointAddition{
+			&endpointSetting{
 				method:     httpmethod,
 				path:       path.Value.String(),
 				handler:    handler,
@@ -137,7 +137,7 @@ func getFunctionFromArg(arg ssa.Value) (*ssa.Function, error) {
 	return nil, fmt.Errorf("argument may be not function call")
 }
 
-type endpointAddition struct {
+type endpointSetting struct {
 	method     string
 	path       string
 	handler    *ssa.Function
