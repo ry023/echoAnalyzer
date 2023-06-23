@@ -23,12 +23,12 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	findEndpointAdditions(pass)
+	findEndpointSettings(pass)
 
 	return nil, nil
 }
 
-func findEndpointAdditions(pass *analysis.Pass) []*endpointSetting {
+func findEndpointSettings(pass *analysis.Pass) []*endpointSetting {
 	// Define values to return
 	endpoints := []*endpointSetting{}
 
