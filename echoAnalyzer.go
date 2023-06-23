@@ -47,23 +47,19 @@ func findEndpointSettings(pass *analysis.Pass) []*endpointSetting {
 	// Find endpoint settings such as the `echo.GET` method
 	//analysisutil.InspectFuncs(srcFuncs, func(i int, instr ssa.Instruction) bool {
 	eachInstruction(srcFuncs, func(instr ssa.Instruction) {
-		// Skip if not function/method calling
-		call, isCall := instr.(*ssa.Call)
-		if !isCall {
+		// Skip if not method calling
+		if !isStructMethodCall(instr) {
 			return
 		}
 
-		// Skip if abstract interface's method calling
-		if call.Common().IsInvoke() {
-			return
-		}
+		call := instr.(*ssa.Call)
+		receiver := call.Common().Signature().Recv()
 
 		// Skip
 		if len(call.Common().Args) == 0 {
 			return
 		}
 
-		receiver := call.Common().Signature().Recv()
 
 		switch receiver.Type().String() {
 		case analysisutil.TypeOf(pass, "github.com/labstack/echo/v4", "*Echo").String():
